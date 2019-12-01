@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package pb;
+
+import "log.proto";
+
+message AppendReq {
+    int64 Term = 1;
+    int32 LeaderId = 2;
+    int64 PrevLogTerm = 3;
+    int64 PrevLogIdx = 4;
+    int64 LeaderCommitLogIdx = 5;
+    Entries Es = 6;
+}
+
+message AppendRsp{
+    int64 Term = 1;
+    int32 RetCode = 2;
+}
+
+message VoteReq{
+    int64 Term = 1;
+    int32 CandiId = 2;
+    int64 LastLogIdx = 3;
+    int64 LastLogTerm = 4;
+}
+
+message VoteRsp {
+    int64 Term = 1;
+    int32 VoteGranted = 2;
+}
+
+service Peer{
+    rpc Append(AppendReq) returns (AppendRsp);
+    rpc Vote(VoteReq) returns (VoteRsp);
+}
