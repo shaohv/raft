@@ -8,18 +8,31 @@ import (
 	"raft/pb"
 )
 
-type PeerServerImpl struct {
-}
+//type PeerServerImpl struct {
+//}
 
-func (p *PeerServerImpl) Append(ctx context.Context, req *pb.AppendReq) (*pb.AppendRsp, error) {
+func (r *Raft) Append(ctx context.Context, req *pb.AppendReq) (*pb.AppendRsp, error) {
 	log.Println("Handle Append Message!")
-	rsp := & pb.AppendRsp{Term:1,RetCode:0}
+
+	rsp := & pb.AppendRsp{}
+	err := r.deliver(req, rsp, make(chan error))
+	if err != nil {
+		rsp.RetCode = RetCodeErr
+		return rsp, err
+	}
 	return rsp, nil
 }
 
-func (p *PeerServerImpl) Vote(ctx context.Context, req *pb.VoteReq) (*pb.VoteRsp, error) {
+func (r *Raft) Vote(ctx context.Context, req *pb.VoteReq) (*pb.VoteRsp, error) {
 	log.Println("Handle Vote Message!")
-	rsp := &pb.VoteRsp{Term:2,VoteGranted:-1}
+	//rsp := &pb.VoteRsp{Term:2,VoteGranted:-1}
+	rsp := &pb.VoteRsp{}
+
+	err := r.deliver(req, rsp, make(chan error, 1))
+	if err != nil {
+		rsp.VoteGranted = RetCodeErr
+		return rsp, err
+	}
 	return rsp, nil
 }
 
@@ -31,7 +44,7 @@ func StartGrpcServer(addr string, servC chan *grpc.Server) {
 		return
 	}
 	s := grpc.NewServer()
-	pb.RegisterPeerServer(s, &PeerServerImpl{})
+	pb.RegisterPeerServer(s, &Raft{})
 	servC <- s
 	s.Serve(lis)
 }
