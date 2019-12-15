@@ -3,6 +3,7 @@ package raft
 import (
 	"log"
 	"raft/pb"
+	"time"
 )
 
 func (r *Raft) eventLoop(){
@@ -17,11 +18,15 @@ func (r *Raft) eventLoop(){
 }
 
 func (r *Raft) leaderLoop(){
+	hbTmoutC := time.After(time.Millisecond * HbTicks)
 	for r.role == Leader {
 		select {
 		case <- r.stopC:
 			log.Printf("node %v stopped", r.me)
 			return
+		case <- hbTmoutC:
+			r.doHeartBeat()
+			hbTmoutC = time.After(time.Millisecond * HbTicks)
 		case task := <- r.blockQ:
 			// handle
 			switch task.req.(type){
@@ -36,7 +41,27 @@ func (r *Raft) leaderLoop(){
 }
 
 func (r *Raft) followerLoop(){
-
+	electTmoutC := time.After(time.Millisecond * ElectTicks)
+	for r.role == Leader {
+		select {
+		case <- r.stopC:
+			log.Printf("node %v stopped", r.me)
+			return
+		case <- electTmoutC:
+			// change to Fellower and reset votedFor
+			// doVote
+		case task := <- r.blockQ:
+			// handle
+			switch task.req.(type){
+			case pb.VoteReq:
+				r.handleVote(task)
+			case pb.AppendReq:
+				r.handleAppend(task)
+				electTmoutC = time.After(time.Millisecond * ElectTicks)
+				//case
+			}
+		}
+	}
 }
 
 func (r *Raft) candidateLoop(){
@@ -60,7 +85,10 @@ func (r *Raft) handleVote(task message) {
 
 	if req.GetTerm() > r.currentTerm {
 		log.Printf("Update term from %d to %d", r.currentTerm, req.GetTerm())
-		r.currentTerm = req.GetTerm()
+		r.setCurrentTerm(req.GetTerm())
+		r.setRole(Follower)
+
+		// 该状态要不要直接将votedFor更新为candidate呢
 	}
 
 	if r.log.getVotedFor() != EmptyVotedFor && r.log.getVotedFor() != req.GetCandiId() {
@@ -100,11 +128,19 @@ func (r *Raft) handleAppend(task message) {
 		rsp.RetCode = RetCodeErr
 		return
 	}
-	
+
 	if r.log.log.E[req.GetPrevLogIdx()].GetTerm() != req.GetPrevLogTerm() {
 		log.Printf("Local currentTerm:%d, req Term:%v", r.currentTerm, req.GetTerm())
 		rsp.Term = r.currentTerm
 		rsp.RetCode = RetCodeErr
 		return
 	}
+}
+
+func (r *Raft) doHeartBeat(){
+
+}
+
+func (r *Raft) doVote(){
+
 }

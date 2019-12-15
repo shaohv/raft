@@ -7,6 +7,10 @@ import (
 	"raft/pb"
 )
 
+const (
+	PaddingKey = "paddingKey"
+	PaddingValue = "paddingValue"
+)
 type Log struct {
 	meta *pb.Meta
 	log *pb.Entries
@@ -17,10 +21,56 @@ type Log struct {
 
 func NewLog() *Log {
 	return & Log{
-		meta : & pb.Meta{VotedFor:-1},
+		meta : & pb.Meta{VotedFor:EmptyVotedFor},
 		log : & pb.Entries{},
 		metaFile:"meta.dat",
 		logFile:"log.dat",
+	}
+}
+
+func (l *Log) LoadMeta() {
+	f, err := os.Open(l.metaFile)
+
+	if err != nil && os.IsNotExist(err) {
+		// create && write initiatie meta
+		l.PersistMeta(l.meta)
+	}else if err == nil {
+		// read
+		defer f.Close()
+
+		data, err := ioutil.ReadFile(l.metaFile)
+		err = proto.Unmarshal(data, l.meta)
+		if err != nil {
+			panic("read meta failed")
+		}
+	}else{
+		panic("open " + l.metaFile + " failed!")
+	}
+}
+
+func (l *Log) LoadLog(){
+	f, err := os.Open(l.logFile)
+	if err != nil && os.IsNotExist(err) {
+		// create && write initiatie log
+		paddingEntry := & pb.Entry{
+			Term:DefaultTerm,
+			LogIdx:0,
+			Key:"paddingKey",
+			Value:"paddingValue",
+		}
+		l.log.E = append(l.log.E, paddingEntry)
+		l.PersistLog(l.log)
+	}else if err == nil {
+		// read
+		defer f.Close()
+
+		data, err := ioutil.ReadFile(l.logFile)
+		err = proto.Unmarshal(data, l.log)
+		if err != nil {
+			panic("read meta failed")
+		}
+	}else{
+		panic("open " + l.metaFile + " failed!")
 	}
 }
 
