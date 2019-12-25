@@ -52,6 +52,8 @@ func StartGrpcServer(addr string, servC chan *grpc.Server) {
 type PeerCli struct {
 	Conn *grpc.ClientConn
 	Cli  pb.PeerClient
+	Ip string
+	Port string
 }
 
 // GetPeer: setup connections with grpc server and return grpc client
