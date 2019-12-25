@@ -200,12 +200,18 @@ func (r *Raft) deliver(req interface{}, rsp interface{}, errC chan error) error{
 func (r *Raft) doCommit(){
 	mini := r.log.getLastLogIndex()
 
-	for i, v := range r.matchIndex {
-		if i != int(r.me) && v < mini {
-			mini = v
+	for j := mini; j > 0; j-- {
+		cnt := 1
+		for i, v := range r.matchIndex {
+			if i != int(r.me) && v == j {
+				cnt ++
+			}
+		}
+
+		if cnt >= r.quorum() {
+			log.Println("Update commitIndex %v -> %v", r.commitIndex, mini)
+			r.commitIndex = mini
+			break
 		}
 	}
-
-	log.Println("Update commitIndex %v -> %v", r.commitIndex, mini)
-	r.commitIndex = mini
 }
